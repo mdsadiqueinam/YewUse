@@ -1,0 +1,55 @@
+[package]
+name = "yewuse"
+version = "0.1.0"
+edition = "2021"
+authors = ["YewUse Contributors"]
+description = "A collection of essential utilities for Yew applications, inspired by VueUse"
+repository = "https://github.com/username/yewuse"
+license = "MIT"
+keywords = ["yew", "hooks", "utilities", "wasm", "webassembly"]
+categories = ["wasm", "web-programming"]
+readme = "README.md"
+
+[dependencies]
+yew = "0.20.0"
+web-sys = { version = "0.3.61", features = [
+    "Window", 
+    "Document", 
+    "Element", 
+    "HtmlElement", 
+    "Node",
+    "NodeList",
+    "Event",
+    "EventTarget",
+    "MouseEvent",
+    "KeyboardEvent",
+    "InputEvent",
+    "DomRect",
+    "CssStyleDeclaration",
+    "Storage",
+    "HtmlInputElement",
+    "HtmlTextAreaElement",
+    "HtmlSelectElement",
+    "HtmlDocument",
+    "MediaQueryList",
+    "MediaQueryListEvent",
+    "DeviceOrientationEvent",
+    "IntersectionObserver",
+    "IntersectionObserverInit",
+    "IntersectionObserverEntry",
+    "ResizeObserver",
+    "ResizeObserverEntry",
+    "Navigator",
+    "Clipboard"
+]}
+wasm-bindgen = "0.2.84"
+wasm-bindgen-futures = "0.4.34"
+js-sys = "0.3.61"
+gloo = "0.8.0"
+gloo-storage = "0.2.2"
+serde = { version = "1.0", features = ["derive"] }
+
+[workspace]
+members = [
+    "examples/demo"
+]
