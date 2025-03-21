@@ -58,8 +58,8 @@ pub mod ui;
 pub mod utils;
 
 // Re-export most commonly used hooks for convenience
-pub use browser::{use_clipboard, use_document_title, use_local_storage, use_window_size};
-pub use sensors::{use_mouse_position, use_media_query, use_network_state};
-pub use state::{use_counter, use_toggle, use_debounce};
-pub use ui::{use_click_outside, use_scroll};
-pub use utils::{use_async, use_interval, use_timeout};
+pub use browser::{use_clipboard, use_document_title, use_local_storage, use_window_size, use_preferred_dark, use_favicon, use_idle, use_breakpoints};
+pub use sensors::{use_mouse_position, use_mouse_position_simple, use_media_query, use_network_state, use_keyboard, use_geolocation};
+pub use state::{use_counter, use_toggle, use_debounce, use_color_mode};
+pub use ui::{use_click_outside, use_scroll, use_scroll_lock, use_element_size, use_intersection_observer};
+pub use utils::{use_async, use_interval, use_timeout, use_websocket};
