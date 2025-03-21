@@ -1,5 +1,4 @@
-use wasm_bindgen::JsCast;
-use web_sys::Clipboard;
+use wasm_bindgen_futures::{spawn_local, JsFuture};
 use yew::hook;
 
 #[derive(Clone)]
@@ -22,10 +21,11 @@ impl Default for UseClipboardReturn {
 }
 
 #[hook]
-pub fn use_clipboard(initial_value: Option<String>) -> (UseClipboardReturn, impl Fn(String) -> ()) {
+pub fn use_clipboard(initial_value: Option<String>) -> (UseClipboardReturn, Box<dyn Fn(String)>) {
+
     let state = yew::use_state(|| UseClipboardReturn {
         is_supported: web_sys::window()
-            .and_then(|w| w.navigator().clipboard())
+            .and_then(|w| Some(w.navigator().clipboard()))
             .is_some(),
         text: initial_value.unwrap_or_default(),
         copied: false,
@@ -34,13 +34,13 @@ pub fn use_clipboard(initial_value: Option<String>) -> (UseClipboardReturn, impl
 
     let copy = {
         let state = state.clone();
-        move |text: String| {
+        Box::new(move |text: String| {
             let state = state.clone();
             if let Some(clipboard) = web_sys::window()
-                .and_then(|w| w.navigator().clipboard())
+                .and_then(|w| Some(w.navigator().clipboard()))
             {
-                wasm_bindgen_futures::spawn_local(async move {
-                    match clipboard.write_text(&text).await {
+                spawn_local(async move {
+                    match JsFuture::from(clipboard.write_text(&text)).await {
                         Ok(_) => {
                             state.set(UseClipboardReturn {
                                 is_supported: true,
@@ -67,27 +67,27 @@ pub fn use_clipboard(initial_value: Option<String>) -> (UseClipboardReturn, impl
                     error: Some("Clipboard API not supported".to_string()),
                 });
             }
-        }
+        })
     };
 
     ((*state).clone(), copy)
 }
 
 #[hook]
-pub fn use_clipboard_read() -> impl Fn() -> () {
+pub fn use_clipboard_read() -> Box<dyn Fn()> {
     let text = yew::use_state(String::new);
     let error = yew::use_state(|| None::<String>);
 
-    move || {
+    Box::new(move || {
         let text = text.clone();
         let error = error.clone();
         if let Some(clipboard) = web_sys::window()
-            .and_then(|w| w.navigator().clipboard())
+            .and_then(|w| Some(w.navigator().clipboard()))
         {
-            wasm_bindgen_futures::spawn_local(async move {
-                match clipboard.read_text().await {
+            spawn_local(async move {
+                match JsFuture::from(clipboard.read_text()).await {
                     Ok(content) => {
-                        text.set(content);
+                        text.set(content.as_string().unwrap_or_default());
                         error.set(None);
                     }
                     Err(err) => {
@@ -98,5 +98,5 @@ pub fn use_clipboard_read() -> impl Fn() -> () {
         } else {
             error.set(Some("Clipboard API not supported".to_string()));
         }
-    }
+    })
 }

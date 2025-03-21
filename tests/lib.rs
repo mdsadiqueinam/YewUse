@@ -10,6 +10,7 @@ mod state {
 #[cfg(test)]
 mod browser {
     mod use_local_storage_test;
+    mod use_clipboard_test;
 }
 
 #[cfg(test)]
