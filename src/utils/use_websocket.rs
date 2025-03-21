@@ -1,6 +1,6 @@
 use wasm_bindgen::{closure::Closure, JsCast, JsValue};
 use web_sys::{MessageEvent, WebSocket};
-use yew::hook;
+use yew::{hook, use_effect_with};
 use std::rc::Rc;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -12,7 +12,7 @@ pub enum WebSocketStatus {
     Error(String),
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct UseWebSocketOptions {
     pub reconnect_limit: Option<u32>,
     pub reconnect_interval: Option<u32>,
@@ -33,30 +33,30 @@ impl Default for UseWebSocketOptions {
 pub fn use_websocket(url: String, options: Option<UseWebSocketOptions>) -> (
     WebSocketStatus,
     Rc<WebSocket>,
-    impl Fn(),
-    impl Fn(String),
-    impl Fn(),
+    Box<dyn Fn()>,
+    Box<dyn Fn(String)>,
+    Box<dyn Fn()>
 ) {
     let options = options.unwrap_or_default();
     let ws = yew::use_state(|| None::<WebSocket>);
     let status = yew::use_state(|| WebSocketStatus::Closed);
     let reconnect_times = yew::use_state(|| 0);
-    let reconnect_timer = yew::use_state(|| None::<i32>);
+    let _reconnect_timer = yew::use_state(|| None::<i32>);
 
     let connect = {
         let url = url.clone();
         let ws = ws.clone();
         let status = status.clone();
         let reconnect_times = reconnect_times.clone();
+        let options = options.clone();
         
         move || {
             if let Ok(socket) = WebSocket::new(&url) {
                 // Message handler
                 let onmessage_callback = {
-                    let ws = ws.clone();
+                    let _ws = ws.clone();
                     Closure::wrap(Box::new(move |e: MessageEvent| {
                         if let Ok(txt) = e.data().dyn_into::<js_sys::JsString>() {
-                            // Handle message here
                             log::debug!("Received message: {:?}", txt);
                         }
                     }) as Box<dyn FnMut(MessageEvent)>)
@@ -74,14 +74,15 @@ pub fn use_websocket(url: String, options: Option<UseWebSocketOptions>) -> (
                 let onclose_callback = {
                     let status = status.clone();
                     let reconnect_times = reconnect_times.clone();
+                    let ws = ws.clone();
                     let url = url.clone();
+                    let options = options.clone();
                     Closure::wrap(Box::new(move |_| {
                         status.set(WebSocketStatus::Closed);
                         
                         if let Some(limit) = options.reconnect_limit {
                             if *reconnect_times < limit {
                                 reconnect_times.set(*reconnect_times + 1);
-                                // Attempt reconnect
                                 if let Ok(new_socket) = WebSocket::new(&url) {
                                     ws.set(Some(new_socket));
                                 }
@@ -98,19 +99,18 @@ pub fn use_websocket(url: String, options: Option<UseWebSocketOptions>) -> (
                     }) as Box<dyn FnMut(JsValue)>)
                 };
 
-                // Set handlers
                 socket.set_onmessage(Some(onmessage_callback.as_ref().unchecked_ref()));
                 socket.set_onopen(Some(onopen_callback.as_ref().unchecked_ref()));
                 socket.set_onclose(Some(onclose_callback.as_ref().unchecked_ref()));
                 socket.set_onerror(Some(onerror_callback.as_ref().unchecked_ref()));
 
-                // Store callbacks to prevent them from being dropped
                 onmessage_callback.forget();
                 onopen_callback.forget();
                 onclose_callback.forget();
                 onerror_callback.forget();
 
-                ws.set(Some(socket));
+                let ws_clone = ws.clone();
+                ws_clone.set(Some(socket));
                 status.set(WebSocketStatus::Connecting);
             } else {
                 status.set(WebSocketStatus::Error("Failed to create WebSocket".to_string()));
@@ -118,7 +118,7 @@ pub fn use_websocket(url: String, options: Option<UseWebSocketOptions>) -> (
         }
     };
 
-    let disconnect = {
+    let disconnect = Box::new({
         let ws = ws.clone();
         let status = status.clone();
         
@@ -128,9 +128,9 @@ pub fn use_websocket(url: String, options: Option<UseWebSocketOptions>) -> (
                 status.set(WebSocketStatus::Closing);
             }
         }
-    };
+    });
 
-    let send_message = {
+    let send_message = Box::new({
         let ws = ws.clone();
         let status = status.clone();
         
@@ -141,9 +141,9 @@ pub fn use_websocket(url: String, options: Option<UseWebSocketOptions>) -> (
                 }
             }
         }
-    };
+    });
 
-    let reconnect = {
+    let reconnect = Box::new({
         let ws = ws.clone();
         let status = status.clone();
         let connect = connect.clone();
@@ -155,26 +155,30 @@ pub fn use_websocket(url: String, options: Option<UseWebSocketOptions>) -> (
                 connect();
             }
         }
-    };
+    });
 
     // Connect if not manual
     {
         let connect = connect.clone();
-        yew::use_effect_with_deps(
-            move |(url, options)| {
-                if !options.manual {
+        let manual = options.manual;
+        
+        use_effect_with(
+            manual,
+            move |&should_manual_connect| {
+                if !should_manual_connect {
                     connect();
                 }
                 
+                // Return cleanup function
                 || {}
             },
-            (url, options),
         );
     }
 
+    let final_url = url.clone();
     (
         (*status).clone(),
-        Rc::new((*ws).clone().unwrap_or_else(|| WebSocket::new(&url).unwrap())),
+        Rc::new((*ws).clone().unwrap_or_else(move || WebSocket::new(&final_url).unwrap())),
         reconnect,
         send_message,
         disconnect,
