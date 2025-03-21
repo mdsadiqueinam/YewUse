@@ -40,7 +40,21 @@ web-sys = { version = "0.3.61", features = [
     "ResizeObserver",
     "ResizeObserverEntry",
     "Navigator",
-    "Clipboard"
+    "Clipboard",
+    "Geolocation",
+    "ScrollIntoViewOptions",
+    "ScrollToOptions",
+    "ScrollBehavior",
+    "EventListenerOptions",
+    "AddEventListenerOptions",
+    "TouchEvent",
+    "TouchList",
+    "Touch",
+    "HtmlLinkElement",
+    "DomTokenList",
+    "WebSocket",
+    "MessageEvent",
+    "Text"
 ]}
 wasm-bindgen = "0.2.84"
 wasm-bindgen-futures = "0.4.34"
@@ -48,6 +62,12 @@ js-sys = "0.3.61"
 gloo = "0.8.0"
 gloo-storage = "0.2.2"
 serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.34"
+gloo-utils = "0.1.6"
+mockall = "0.11.4"
 
 [workspace]
 members = [

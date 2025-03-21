@@ -1,6 +1,7 @@
 use wasm_bindgen::{closure::Closure, JsCast};
 use web_sys::{window, Element, IntersectionObserver, IntersectionObserverEntry, IntersectionObserverInit};
 use yew::prelude::*;
+use yew::hook;
 
 /// Configuration options for the Intersection Observer
 #[derive(Clone)]
@@ -96,84 +97,71 @@ impl Default for IntersectionInfo {
 /// }
 /// ```
 #[hook]
-pub fn use_intersection_observer(
-    target: NodeRef,
-    options: Option<UseIntersectionOptions>,
-) -> IntersectionInfo {
-    let intersection_info = use_state(IntersectionInfo::default);
-    let observer_ref = use_mut_ref(|| None::<IntersectionObserver>);
-    
+pub fn use_intersection_observer<F>(
+    target: Element,
+    callback: F,
+    options: Option<UseIntersectionObserverOptions>,
+) where
+    F: Fn(&[IntersectionObserverEntry]) + 'static,
+{
     let options = options.unwrap_or_default();
-    
-    use_effect_with_deps(
+
+    yew::use_effect_with_deps(
         move |(target, options)| {
-            let intersection_info = intersection_info.clone();
-            
-            // Create intersection observer
-            let callback = {
-                let intersection_info = intersection_info.clone();
-                
-                Closure::wrap(Box::new(move |entries: js_sys::Array, _observer: IntersectionObserver| {
-                    // We're only observing one element, so we can use the first entry
-                    if let Some(entry) = entries.get(0).dyn_into::<IntersectionObserverEntry>().ok() {
-                        intersection_info.set(IntersectionInfo {
-                            is_intersecting: entry.is_intersecting(),
-                            intersection_ratio: entry.intersection_ratio(),
-                            bounding_client_rect: entry.bounding_client_rect(),
-                            intersection_rect: entry.intersection_rect(),
-                            is_fully_visible: entry.intersection_ratio() >= 0.99,
-                            time: entry.time(),
-                        });
-                    }
-                }) as Box<dyn FnMut(js_sys::Array, IntersectionObserver)>)
-            };
-            
-            // Configure the observer
             let mut observer_init = IntersectionObserverInit::new();
             
-            // Set root element if provided
-            if let Some(root_ref) = &options.root {
-                if let Some(root_element) = root_ref.cast::<Element>() {
-                    observer_init.root(Some(&root_element));
-                }
+            if let Some(root) = &options.root {
+                observer_init.root(Some(root));
             }
             
-            // Set root margin if provided
             if let Some(margin) = &options.root_margin {
                 observer_init.root_margin(margin);
             }
             
-            // Set threshold
-            let thresholds = js_sys::Array::new();
-            for threshold in &options.threshold {
-                thresholds.push(&(*threshold).into());
+            if let Some(threshold) = &options.threshold {
+                observer_init.threshold(&threshold.into());
             }
-            observer_init.threshold(&thresholds);
-            
-            // Create and store the observer
-            if let Ok(observer) = IntersectionObserver::new_with_options(
+
+            let callback = Closure::wrap(Box::new(move |entries: js_sys::Array, _observer: IntersectionObserver| {
+                let entries: Vec<IntersectionObserverEntry> = entries
+                    .iter()
+                    .filter_map(|entry| entry.dyn_into::<IntersectionObserverEntry>().ok())
+                    .collect();
+                callback(&entries);
+            }) as Box<dyn FnMut(js_sys::Array, IntersectionObserver)>);
+
+            let observer = IntersectionObserver::new_with_options(
                 callback.as_ref().unchecked_ref(),
                 &observer_init,
-            ) {
-                // Start observing the target element
-                if let Some(element) = target.cast::<Element>() {
-                    observer.observe(&element);
-                    *observer_ref.borrow_mut() = Some(observer);
-                }
-                
-                // Keep the callback alive
-                callback.forget();
-            }
-            
-            // Cleanup when the component unmounts
+            )
+            .unwrap();
+
+            observer.observe(target);
+
             move || {
-                if let Some(observer) = observer_ref.borrow_mut().take() {
-                    observer.disconnect();
-                }
+                observer.disconnect();
             }
         },
         (target, options),
     );
-    
-    (*intersection_info).clone()
+}
+
+#[hook]
+pub fn use_element_visibility(element: Element) -> bool {
+    let is_visible = yew::use_state(|| false);
+
+    {
+        let is_visible = is_visible.clone();
+        use_intersection_observer(
+            element,
+            move |entries| {
+                if let Some(entry) = entries.first() {
+                    is_visible.set(entry.is_intersecting());
+                }
+            },
+            None,
+        );
+    }
+
+    *is_visible
 }

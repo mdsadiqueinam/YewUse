@@ -38,22 +38,22 @@ pub fn get_active_element() -> Option<Element> {
 
 /// Check if an element has a specific class
 pub fn has_class(element: &Element, class_name: &str) -> bool {
-    element.class_list().contains(class_name)
+    element.class_list().unwrap().contains(class_name)
 }
 
 /// Add a class to an element
 pub fn add_class(element: &Element, class_name: &str) {
-    let _ = element.class_list().add_1(class_name);
+    let _ = element.class_list().unwrap().add_1(class_name);
 }
 
 /// Remove a class from an element
 pub fn remove_class(element: &Element, class_name: &str) {
-    let _ = element.class_list().remove_1(class_name);
+    let _ = element.class_list().unwrap().remove_1(class_name);
 }
 
 /// Toggle a class on an element
 pub fn toggle_class(element: &Element, class_name: &str) {
-    let _ = element.class_list().toggle(class_name);
+    let _ = element.class_list().unwrap().toggle(class_name);
 }
 
 /// Get computed style property value
@@ -99,22 +99,8 @@ pub fn blur_element(element: &Element) {
 
 /// Get the value of an input element
 pub fn get_input_value(element: &Element) -> Option<String> {
-    element
-        .dyn_into::<web_sys::HtmlInputElement>()
+    element.clone().dyn_into::<web_sys::HtmlInputElement>().ok()
         .map(|input| input.value())
-        .ok()
-        .or_else(|| {
-            element
-                .dyn_into::<web_sys::HtmlTextAreaElement>()
-                .map(|textarea| textarea.value())
-                .ok()
-        })
-        .or_else(|| {
-            element
-                .dyn_into::<web_sys::HtmlSelectElement>()
-                .map(|select| select.value())
-                .ok()
-        })
 }
 
 /// Set the value of an input element
@@ -190,7 +176,11 @@ pub fn create_element(tag: &str) -> Option<Element> {
 
 /// Create a text node
 pub fn create_text_node(text: &str) -> Option<Node> {
-    get_document().map(|doc| doc.create_text_node(text))
+    get_document().and_then(|doc| {
+        doc.create_text_node(text)
+            .dyn_into::<Node>()
+            .ok()
+    })
 }
 
 /// Set attribute on an element
