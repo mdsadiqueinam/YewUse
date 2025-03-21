@@ -137,7 +137,8 @@ pub fn use_breakpoints(options: Option<UseBreakpointsOptions>) -> Breakpoints {
     let options = options.unwrap_or_default();
     let breakpoints = use_state(Breakpoints::default);
     
-    use_effect_with_deps(
+    use_effect_with(
+        options,
         move |options| {
             let window = window().unwrap();
             let breakpoints_clone = breakpoints.clone();
@@ -200,8 +201,7 @@ pub fn use_breakpoints(options: Option<UseBreakpointsOptions>) -> Breakpoints {
                     )
                     .unwrap();
             }
-        },
-        options,
+        }
     );
     
     (*breakpoints).clone()
