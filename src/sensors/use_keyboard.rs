@@ -1,5 +1,5 @@
 use wasm_bindgen::{closure::Closure, JsCast};
-use web_sys::{window, Event, KeyboardEvent};
+use web_sys::{window, Event, KeyboardEvent, EventTarget};
 use yew::prelude::*;
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -22,7 +22,7 @@ pub struct UseKeyboardOptions {
     pub target: KeyboardTarget,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum KeyboardTarget {
     Window,
     Document,
@@ -169,7 +169,7 @@ pub fn use_keyboard_state(target: Option<NodeRef>, options: Option<UseKeyboardOp
                 let window = window().unwrap();
                 let document = window.document().unwrap();
                 
-                let target_element = match &options.target {
+                let target_element: EventTarget = match &options.target {
                     KeyboardTarget::Window => window.dyn_into().unwrap(),
                     KeyboardTarget::Document => document.dyn_into().unwrap(),
                     KeyboardTarget::Element(element) => element.clone().dyn_into().unwrap(),

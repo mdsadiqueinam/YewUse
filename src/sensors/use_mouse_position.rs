@@ -35,6 +35,19 @@ impl Default for UseMousePositionOptions {
     }
 }
 
+impl PartialEq for UseMousePositionOptions {
+    fn eq(&self, other: &Self) -> bool {
+        self.touch == other.touch
+            && self.reset_on_touch_ends == other.reset_on_touch_ends
+            && self.touch_only == other.touch_only
+            && match (&self.target, &other.target) {
+                (Some(a), Some(b)) => a.is_same_node(Some(b)),
+                (None, None) => true,
+                _ => false,
+            }
+    }
+}
+
 #[hook]
 pub fn use_mouse_position(options: UseMousePositionOptions) -> MousePosition {
     let position = yew::use_state(|| MousePosition {

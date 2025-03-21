@@ -1,5 +1,5 @@
 use wasm_bindgen::JsCast;
-use web_sys::window;
+use web_sys::{window, NetworkInformation};
 use yew::hook;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -37,28 +37,24 @@ pub fn use_network_state() -> NetworkState {
             move |_| {
                 let window = window().unwrap();
                 let navigator = window.navigator();
-
+                let connection = navigator.as_ref()
+                    .dyn_ref::<NetworkInformation>();
+                
                 // Initial state
                 state.set(NetworkState {
                     online: navigator.on_line(),
-                    downlink: navigator
-                        .connection()
+                    downlink: connection
                         .and_then(|conn| conn.downlink().ok()),
-                    downlink_max: navigator
-                        .connection()
+                    downlink_max: connection
                         .and_then(|conn| conn.downlink_max().ok()),
-                    effective_type: navigator
-                        .connection()
+                    effective_type: connection
                         .and_then(|conn| conn.effective_type().ok()),
-                    rtt: navigator
-                        .connection()
+                    rtt: connection
                         .and_then(|conn| conn.rtt().ok()),
-                    save_data: navigator
-                        .connection()
+                    save_data: connection
                         .and_then(|conn| conn.save_data().ok())
                         .unwrap_or(false),
-                    type_: navigator
-                        .connection()
+                    type_: connection
                         .and_then(|conn| conn.type_().ok()),
                 });
 
@@ -95,7 +91,7 @@ pub fn use_network_state() -> NetworkState {
                         let navigator = window.navigator();
                         let mut current = (*state).clone();
                         
-                        if let Some(conn) = navigator.connection() {
+                        if let Some(conn) = navigator.as_ref().dyn_ref::<NetworkInformation>() {
                             current.downlink = conn.downlink().ok();
                             current.downlink_max = conn.downlink_max().ok();
                             current.effective_type = conn.effective_type().ok();
@@ -119,7 +115,7 @@ pub fn use_network_state() -> NetworkState {
                     .add_event_listener_with_callback("offline", offline_callback.as_ref().unchecked_ref())
                     .unwrap();
 
-                if let Some(conn) = navigator.connection() {
+                if let Some(conn) = navigator.as_ref().dyn_ref::<NetworkInformation>() {
                     conn.add_event_listener_with_callback(
                         "change",
                         connection_change.as_ref().unchecked_ref(),
@@ -135,7 +131,7 @@ pub fn use_network_state() -> NetworkState {
                         .remove_event_listener_with_callback("offline", offline_callback.as_ref().unchecked_ref())
                         .unwrap();
 
-                    if let Some(conn) = navigator.connection() {
+                    if let Some(conn) = navigator.as_ref().dyn_ref::<NetworkInformation>() {
                         conn.remove_event_listener_with_callback(
                             "change",
                             connection_change.as_ref().unchecked_ref(),

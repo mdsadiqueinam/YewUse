@@ -24,7 +24,6 @@ impl Default for DeviceOrientation {
 #[hook]
 pub fn use_device_orientation() -> DeviceOrientation {
     let orientation = yew::use_state(DeviceOrientation::default);
-
     {
         let orientation = orientation.clone();
         yew::use_effect_with_deps(
@@ -41,31 +40,31 @@ pub fn use_device_orientation() -> DeviceOrientation {
                     }) as Box<dyn FnMut(DeviceOrientationEvent)>)
                 };
 
+                // Store the callback reference for cleanup
+                let callback_ref = callback.as_ref().unchecked_ref();
+                
                 if let Some(window) = window() {
                     window
                         .add_event_listener_with_callback(
                             "deviceorientation",
-                            callback.as_ref().unchecked_ref(),
+                            callback_ref,
                         )
                         .unwrap();
-
                     callback.forget();
-
-                    move || {
-                        window
-                            .remove_event_listener_with_callback(
-                                "deviceorientation",
-                                callback.as_ref().unchecked_ref(),
-                            )
-                            .unwrap_or_default();
-                    }
-                } else {
-                    move || {}
                 }
+
+                // Return a consistent cleanup function
+                Box::new(move || {
+                    if let Some(window) = window() {
+                        let _ = window.remove_event_listener_with_callback(
+                            "deviceorientation",
+                            callback_ref,
+                        );
+                    }
+                }) as Box<dyn FnOnce()>
             },
             (),
         );
     }
-
     (*orientation).clone()
 }
