@@ -37,25 +37,24 @@ pub fn use_network_state() -> NetworkState {
             move |_| {
                 let window = window().unwrap();
                 let navigator = window.navigator();
-                let connection = navigator.as_ref()
-                    .dyn_ref::<NetworkInformation>();
+                let connection = navigator.unchecked_ref::<NetworkInformation>();
                 
                 // Initial state
                 state.set(NetworkState {
                     online: navigator.on_line(),
                     downlink: connection
-                        .and_then(|conn| conn.downlink().ok()),
+                        .downlink().ok(),
                     downlink_max: connection
-                        .and_then(|conn| conn.downlink_max().ok()),
+                        .downlink_max().ok(),
                     effective_type: connection
-                        .and_then(|conn| conn.effective_type().ok()),
+                        .effective_type().ok(),
                     rtt: connection
-                        .and_then(|conn| conn.rtt().ok()),
+                        .rtt().ok(),
                     save_data: connection
-                        .and_then(|conn| conn.save_data().ok())
+                        .save_data().ok()
                         .unwrap_or(false),
                     type_: connection
-                        .and_then(|conn| conn.type_().ok()),
+                        .type_().ok(),
                 });
 
                 // Online status handler
@@ -91,14 +90,13 @@ pub fn use_network_state() -> NetworkState {
                         let navigator = window.navigator();
                         let mut current = (*state).clone();
                         
-                        if let Some(conn) = navigator.as_ref().dyn_ref::<NetworkInformation>() {
-                            current.downlink = conn.downlink().ok();
-                            current.downlink_max = conn.downlink_max().ok();
-                            current.effective_type = conn.effective_type().ok();
-                            current.rtt = conn.rtt().ok();
-                            current.save_data = conn.save_data().ok().unwrap_or(false);
-                            current.type_ = conn.type_().ok();
-                        }
+                        let conn = navigator.unchecked_ref::<NetworkInformation>();
+                        current.downlink = conn.downlink().ok();
+                        current.downlink_max = conn.downlink_max().ok();
+                        current.effective_type = conn.effective_type().ok();
+                        current.rtt = conn.rtt().ok();
+                        current.save_data = conn.save_data().ok().unwrap_or(false);
+                        current.type_ = conn.type_().ok();
                         
                         state.set(current);
                     };
@@ -115,13 +113,16 @@ pub fn use_network_state() -> NetworkState {
                     .add_event_listener_with_callback("offline", offline_callback.as_ref().unchecked_ref())
                     .unwrap();
 
-                if let Some(conn) = navigator.as_ref().dyn_ref::<NetworkInformation>() {
-                    conn.add_event_listener_with_callback(
-                        "change",
-                        connection_change.as_ref().unchecked_ref(),
-                    )
-                    .unwrap();
-                }
+                // Add change listener to connection
+                let conn = navigator.unchecked_ref::<NetworkInformation>();
+                conn.add_event_listener_with_callback(
+                    "change",
+                    connection_change.as_ref().unchecked_ref(),
+                )
+                .unwrap_or_else(|_| {
+                    // Handle error case where the browser doesn't support this event
+                    web_sys::console::warn_1(&"Browser doesn't support network information API fully".into());
+                });
 
                 move || {
                     window
@@ -131,13 +132,12 @@ pub fn use_network_state() -> NetworkState {
                         .remove_event_listener_with_callback("offline", offline_callback.as_ref().unchecked_ref())
                         .unwrap();
 
-                    if let Some(conn) = navigator.as_ref().dyn_ref::<NetworkInformation>() {
-                        conn.remove_event_listener_with_callback(
-                            "change",
-                            connection_change.as_ref().unchecked_ref(),
-                        )
-                        .unwrap();
-                    }
+                    // Try to remove change listener, but don't fail if it's not supported
+                    let conn = navigator.unchecked_ref::<NetworkInformation>();
+                    let _ = conn.remove_event_listener_with_callback(
+                        "change",
+                        connection_change.as_ref().unchecked_ref(),
+                    );
                 }
             },
             (),
